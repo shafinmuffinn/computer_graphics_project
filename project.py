@@ -27,33 +27,69 @@ def update_game():
 
 def draw_sphere():
     glPushMatrix()
-
     # move sphere forward along platform
-    glTranslatef(0, sphere_y, SPHERE_RADIUS)
-
+    glTranslatef(0, sphere_y, sphere_z)
     # rotate sphere to simulate rolling
     glRotatef(sphere_rot, 1, 0, 0)
-
     glColor3f(0.5, 0.8, 0.2)
-    glutSolidSphere(SPHERE_RADIUS, 5, 5)
+    glutWireSphere(50, 10, 10)
 
     glPopMatrix()
 sphere_y = 0        # position along the platform
 sphere_rot = 0     # rotation angle for rolling
 SPHERE_RADIUS = 50
-ROLL_SPEED = 40
+ROLL_SPEED = 5
 
 platform_offset = 0
 PLATFORM_LENGTH = 10000
 
-def keyboardListener(key, x, y):
-    global sphere_y, sphere_rot
+#after adding jump
+sphere_z = 0          # current height of sphere
+jump_velocity = 0    # how fast it goes up/down
+is_jumping = False   # whether jump is active
+
+GRAVITY = -0.2
+JUMP_STRENGTH = 9
+GROUND_Z = 0
+
+# after jump/holding down 'w' issue
+move_forward = False
+jump_requested = False
+
+
+def update_jump():
+    global sphere_z, jump_velocity, is_jumping, sphere_y, velocity_z, jump_requested
+    
+
+    if is_jumping:
+        sphere_z += jump_velocity
+        jump_velocity += GRAVITY
+
+        # landed back on platform
+        if sphere_z <= GROUND_Z:
+            sphere_z = GROUND_Z
+            jump_velocity = 0
+            is_jumping = False
+def keyboardUpListener(key, x, y):
+    global move_forward
 
     if key == b'w':
-        sphere_y -= ROLL_SPEED
+        move_forward = False
+        
+def keyboardListener(key, x, y):
+    global sphere_y, sphere_rot, jump_velocity, is_jumping, move_forward, jump_requested
+    if key == b' ' and not is_jumping:
+        jump_requested = True ##might need to change
+        jump_velocity = JUMP_STRENGTH
+        is_jumping = True
+
+    if key == b'w':
+        move_forward = True
+    
         #print(sphere_y)
         # rotation angle = distance / radius (simplified)
         sphere_rot += (ROLL_SPEED / SPHERE_RADIUS) * 57.3
+        sphere_y -= ROLL_SPEED
 
 def setupCamera():
     glMatrixMode(GL_PROJECTION)
@@ -85,9 +121,19 @@ def showScreen():
     # -------- DRAW HERE (later) -------- #
     draw_sphere()
     draw_platform()
+    update_jump()
+
     # Swap buffers (double buffering)
     glutSwapBuffers()
 def idle():
+    global sphere_y, sphere_rot
+
+    if move_forward:
+        sphere_y -= ROLL_SPEED   # move forward continuously
+        sphere_rot += (ROLL_SPEED / SPHERE_RADIUS) * 57.3
+    update_jump()
+
+    glutPostRedisplay()
     glutPostRedisplay()
     update_game()
 def main():
@@ -106,6 +152,8 @@ def main():
     # Register display callback
     glutDisplayFunc(showScreen)
     glutKeyboardFunc(keyboardListener)
+    glutKeyboardUpFunc(keyboardUpListener)
+
     glutIdleFunc(idle)
     # Enter main loop
     glutMainLoop()
